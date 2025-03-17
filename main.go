@@ -10,7 +10,14 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // allow all origins (for hotspot clients)
+	},
+}
+
 var clients = make(map[*websocket.Conn]bool)
 var broadcast = make(chan Message)
 var mutex sync.Mutex
@@ -26,22 +33,25 @@ func main() {
 
 	go handleMessages()
 
-	fmt.Println("Server started at :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	serverAddr := "0.0.0.0:8080"
+	fmt.Printf("✅ Server started at http://%s\n", serverAddr)
+	log.Fatal(http.ListenAndServe(serverAddr, nil))
 }
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Serving index.html to", r.RemoteAddr)
 	http.ServeFile(w, r, "index.html")
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
-	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket error: %v\n", err)
+		log.Printf("❌ WebSocket upgrade failed: %v\n", err)
 		return
 	}
 	defer ws.Close()
+
+	log.Printf("🔌 New client connected: %s\n", ws.RemoteAddr())
 
 	mutex.Lock()
 	clients[ws] = true
@@ -51,12 +61,13 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		var msg Message
 		err := ws.ReadJSON(&msg)
 		if err != nil {
-			log.Printf("Client disconnected: %v\n", err)
+			log.Printf("⚠️ Client %s disconnected: %v\n", ws.RemoteAddr(), err)
 			mutex.Lock()
 			delete(clients, ws)
 			mutex.Unlock()
 			break
 		}
+		log.Printf("📩 Received message from %s: %s\n", msg.Sender, msg.Content)
 		broadcast <- msg
 	}
 }
@@ -68,6 +79,7 @@ func handleMessages() {
 		for client := range clients {
 			err := client.WriteJSON(msg)
 			if err != nil {
+				log.Printf("❌ Error sending to client %s: %v\n", client.RemoteAddr(), err)
 				client.Close()
 				delete(clients, client)
 			}
