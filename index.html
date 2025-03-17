@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Emergency Mesh Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #chat { height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; }
+        #msgInput { width: 80%; }
+    </style>
+</head>
+<body>
+    <h2>Emergency Mesh Chat</h2>
+    <div id="chat"></div>
+    <input id="nameInput" type="text" placeholder="Your Name" />
+    <input id="msgInput" type="text" placeholder="Type a message" />
+    <button onclick="sendMsg()">Send</button>
+
+    <script>
+        const ws = new WebSocket(`ws://${location.host}/ws`);
+        const chat = document.getElementById('chat');
+
+        ws.onmessage = function(event) {
+            const msg = JSON.parse(event.data);
+            const div = document.createElement('div');
+            div.textContent = `${msg.sender}: ${msg.content}`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        };
+
+        function sendMsg() {
+            const name = document.getElementById('nameInput').value;
+            const msg = document.getElementById('msgInput').value;
+            if (!name || !msg) return;
+            ws.send(JSON.stringify({ sender: name, content: msg }));
+            document.getElementById('msgInput').value = '';
+        }
+    </script>
+</body>
+</html>
+
