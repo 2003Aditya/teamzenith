@@ -1,9 +1,11 @@
+
 // main.go
 package main
 
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 
@@ -30,12 +32,21 @@ type Message struct {
 func main() {
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", handleConnections)
-
 	go handleMessages()
 
-	serverAddr := "0.0.0.0:8080"
-	fmt.Printf("✅ Server started at http://%s\n", serverAddr)
-	log.Fatal(http.ListenAndServe(serverAddr, nil))
+	port := "8080"
+	listener, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		fmt.Printf("⚠️ Port %s in use, trying a random available port...\n", port)
+		listener, err = net.Listen("tcp", ":0") // random available port
+		if err != nil {
+			log.Fatalf("❌ Failed to bind to a port: %v\n", err)
+		}
+	}
+
+	addr := listener.Addr().String()
+	fmt.Printf("✅ Server started at http://%s\n", addr)
+	log.Fatal(http.Serve(listener, nil))
 }
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
@@ -87,4 +98,3 @@ func handleMessages() {
 		mutex.Unlock()
 	}
 }
-
