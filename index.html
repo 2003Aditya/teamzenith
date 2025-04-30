@@ -51,6 +51,113 @@
 <!---->
 <!--</html>-->
 
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <title>Emergency Mesh Chat + Map</title>-->
+<!--    <style>-->
+<!--        body { font-family: Arial, sans-serif; }-->
+<!--        #chat { height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }-->
+<!--        #msgInput { width: 80%; }-->
+<!--        #map { height: 300px; margin-top: 20px; border: 1px solid #ccc; }-->
+<!--    </style>-->
+<!--    <!-- Use local Leaflet CSS -->-->
+<!--    <link rel="stylesheet" href="/leaflet/leaflet.css" />-->
+<!--</head>-->
+<!--<body>-->
+<!--    <h2>Emergency Mesh Chat</h2>-->
+<!--    <div id="chat"></div>-->
+<!--    <input id="nameInput" type="text" placeholder="Your Name" />-->
+<!--    <input id="msgInput" type="text" placeholder="Type a message" />-->
+<!--    <button onclick="sendMsg()">Send</button>-->
+<!---->
+<!--    <div id="map"></div>-->
+<!---->
+<!--    <!-- Use local Leaflet JS -->-->
+<!--    <script src="/leaflet/leaflet.js"></script>-->
+<!--    <script>-->
+<!--        // Secure WebSocket depending on page protocol (wss for HTTPS)-->
+<!--        const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);-->
+<!--        const chat = document.getElementById('chat');-->
+<!--        let map;-->
+<!--        let markers = {};-->
+<!--        let myLat, myLng;-->
+<!---->
+<!--        // Handle incoming messages-->
+<!--        ws.onmessage = function(event) {-->
+<!--            const data = JSON.parse(event.data);-->
+<!---->
+<!--            if (data.sender && data.content) {-->
+<!--                const div = document.createElement('div');-->
+<!--                div.textContent = `${data.sender}: ${data.content}`;-->
+<!--                chat.appendChild(div);-->
+<!--                chat.scrollTop = chat.scrollHeight;-->
+<!--            }-->
+<!---->
+<!--            if (data.sender && data.lat && data.lng) {-->
+<!--                if (!markers[data.sender]) {-->
+<!--                    markers[data.sender] = L.marker([data.lat, data.lng]).addTo(map).bindPopup(data.sender);-->
+<!--                } else {-->
+<!--                    markers[data.sender].setLatLng([data.lat, data.lng]);-->
+<!--                }-->
+<!--            }-->
+<!--        };-->
+<!---->
+<!--        function sendMsg() {-->
+<!--            const name = document.getElementById('nameInput').value;-->
+<!--            const msg = document.getElementById('msgInput').value;-->
+<!--            if (!name || !msg) return;-->
+<!--            ws.send(JSON.stringify({ sender: name, content: msg }));-->
+<!--            document.getElementById('msgInput').value = '';-->
+<!--        }-->
+<!---->
+<!--        function sendLocation(lat, lng) {-->
+<!--            const name = document.getElementById('nameInput').value || "Anonymous";-->
+<!--            ws.send(JSON.stringify({ sender: name, lat, lng }));-->
+<!--        }-->
+<!---->
+<!--        function initMap(lat, lng) {-->
+<!--            myLat = lat;-->
+<!--            myLng = lng;-->
+<!---->
+<!--            map = L.map('map').setView([lat, lng], 13);-->
+<!--            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {-->
+<!--                attribution: 'Map data © OpenStreetMap contributors',-->
+<!--            }).addTo(map);-->
+<!---->
+<!--            L.marker([lat, lng]).addTo(map).bindPopup("You").openPopup();-->
+<!---->
+<!--            ws.onopen = () => {-->
+<!--                sendLocation(lat, lng);-->
+<!--            };-->
+<!---->
+<!--            if (ws.readyState === WebSocket.OPEN) {-->
+<!--                sendLocation(lat, lng);-->
+<!--            }-->
+<!--        }-->
+<!---->
+<!--        // Get user's geolocation-->
+<!--        navigator.geolocation.getCurrentPosition(-->
+<!--            function(position) {-->
+<!--                const lat = position.coords.latitude;-->
+<!--                const lng = position.coords.longitude;-->
+<!--                initMap(lat, lng);-->
+<!--            },-->
+<!--            function(error) {-->
+<!--                alert("Location permission denied. Defaulting to fallback location.");-->
+<!--                const fallbackLat = 28.6139; // Delhi-->
+<!--                const fallbackLng = 77.2090;-->
+<!--                initMap(fallbackLat, fallbackLng);-->
+<!--            }-->
+<!--        );-->
+<!--    </script>-->
+<!--</body>-->
+<!--</html>-->
+<!---->
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -77,8 +184,8 @@
     <!-- Use local Leaflet JS -->
     <script src="/leaflet/leaflet.js"></script>
     <script>
-        // Secure WebSocket depending on page protocol
-        const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+        // WebSocket connection to the IP address (assuming the server is running on https://192.168.186.220:8443)
+        const ws = new WebSocket(`wss://${location.hostname}:8443/ws`);
         const chat = document.getElementById('chat');
         let map;
         let markers = {};
@@ -95,6 +202,7 @@
                 chat.scrollTop = chat.scrollHeight;
             }
 
+            // Handle incoming location data
             if (data.sender && data.lat && data.lng) {
                 if (!markers[data.sender]) {
                     markers[data.sender] = L.marker([data.lat, data.lng]).addTo(map).bindPopup(data.sender);
@@ -128,6 +236,7 @@
 
             L.marker([lat, lng]).addTo(map).bindPopup("You").openPopup();
 
+            // Broadcast your location when the WebSocket connection is open
             ws.onopen = () => {
                 sendLocation(lat, lng);
             };
