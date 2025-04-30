@@ -227,8 +227,8 @@
             myLng = lng;
 
             map = L.map('map').setView([lat, lng], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: 'Map data © OpenStreetMap contributors',
+            L.tileLayer('', {
+                attribution: 'Map by ZOKD ',
             }).addTo(map);
 
             L.marker([lat, lng]).addTo(map).bindPopup("You").openPopup();
