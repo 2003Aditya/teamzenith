@@ -196,9 +196,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"sync"
 	"strings"
-
 	"github.com/gorilla/websocket"
 )
 
@@ -213,10 +211,10 @@ var upgrader = websocket.Upgrader{
 
 var clients = make(map[*websocket.Conn]string) // To store clients with their IP address
 var broadcast = make(chan Message)
-var mutex sync.Mutex
 
 type Message struct {
 	SenderIP string  `json:"sender_ip"`
+	Content  string  `json:"content,omitempty"`
 	Lat      float64 `json:"lat,omitempty"`
 	Lng      float64 `json:"lng,omitempty"`
 }
@@ -258,23 +256,21 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("🔌 New client connected: %s\n", ip)
 
-	mutex.Lock()
 	clients[ws] = ip
-	mutex.Unlock()
 
-	// Notify other clients that a new client has connected
-	broadcast <- Message{SenderIP: fmt.Sprintf("Server (New connection from %s)", ip)}
+	// Notify all clients of the new connection with the IP
+	broadcast <- Message{SenderIP: ip}
 
 	for {
 		var msg Message
 		err := ws.ReadJSON(&msg)
 		if err != nil {
 			log.Printf("⚠️ Client %s disconnected: %v\n", ip, err)
-			mutex.Lock()
 			delete(clients, ws)
-			mutex.Unlock()
 			break
 		}
+
+		// Broadcast received message to all clients
 		broadcast <- msg
 	}
 }
@@ -282,7 +278,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 func handleMessages() {
 	for {
 		msg := <-broadcast
-		mutex.Lock()
 		for client := range clients {
 			err := client.WriteJSON(msg)
 			if err != nil {
@@ -291,7 +286,6 @@ func handleMessages() {
 				delete(clients, client)
 			}
 		}
-		mutex.Unlock()
 	}
 }
 
