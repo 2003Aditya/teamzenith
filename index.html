@@ -157,7 +157,6 @@
 <!---->
 
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -195,19 +194,20 @@
         ws.onmessage = function(event) {
             const data = JSON.parse(event.data);
 
-            if (data.sender && data.content) {
+            if (data.sender_ip && data.sender_ip.startsWith("Server")) {
+                // Display server messages (connection notifications)
                 const div = document.createElement('div');
-                div.textContent = `${data.sender}: ${data.content}`;
+                div.textContent = data.sender_ip;
                 chat.appendChild(div);
                 chat.scrollTop = chat.scrollHeight;
             }
 
             // Handle incoming location data
-            if (data.sender && data.lat && data.lng) {
-                if (!markers[data.sender]) {
-                    markers[data.sender] = L.marker([data.lat, data.lng]).addTo(map).bindPopup(data.sender);
+            if (data.sender_ip && data.lat && data.lng) {
+                if (!markers[data.sender_ip]) {
+                    markers[data.sender_ip] = L.marker([data.lat, data.lng]).addTo(map).bindPopup(data.sender_ip);
                 } else {
-                    markers[data.sender].setLatLng([data.lat, data.lng]);
+                    markers[data.sender_ip].setLatLng([data.lat, data.lng]);
                 }
             }
         };
@@ -216,13 +216,13 @@
             const name = document.getElementById('nameInput').value;
             const msg = document.getElementById('msgInput').value;
             if (!name || !msg) return;
-            ws.send(JSON.stringify({ sender: name, content: msg }));
+            ws.send(JSON.stringify({ sender_ip: name, content: msg }));
             document.getElementById('msgInput').value = '';
         }
 
         function sendLocation(lat, lng) {
             const name = document.getElementById('nameInput').value || "Anonymous";
-            ws.send(JSON.stringify({ sender: name, lat, lng }));
+            ws.send(JSON.stringify({ sender_ip: name, lat, lng }));
         }
 
         function initMap(lat, lng) {
