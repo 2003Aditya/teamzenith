@@ -89,7 +89,6 @@
 // }
 //
 
-
 package main
 
 import (
@@ -105,6 +104,7 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
+		// Allow any origin for local testing
 		return true
 	},
 }
@@ -121,18 +121,25 @@ type Message struct {
 }
 
 func main() {
+	// Serve static files (e.g., leaflet assets)
+	fs := http.FileServer(http.Dir("./leaflet"))
+	http.Handle("/leaflet/", http.StripPrefix("/leaflet/", fs))
+
+	// Serve index.html
 	http.HandleFunc("/", serveHome)
+
+	// WebSocket endpoint
 	http.HandleFunc("/ws", handleConnections)
 
+	// Handle broadcasting in a separate goroutine
 	go handleMessages()
 
-	serverAddr := "0.0.0.0:8080"
-	fmt.Printf("✅ Server started at http://%s\n", serverAddr)
-	log.Fatal(http.ListenAndServe(serverAddr, nil))
+	addr := ":8443"
+	fmt.Printf("✅ Secure server started at https://localhost%s\n", addr)
+	log.Fatal(http.ListenAndServeTLS(addr, "cert.pem", "key.pem", nil))
 }
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Serving index.html to", r.RemoteAddr)
 	http.ServeFile(w, r, "index.html")
 }
 

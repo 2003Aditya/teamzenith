@@ -51,7 +51,6 @@
 <!---->
 <!--</html>-->
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -63,7 +62,8 @@
         #msgInput { width: 80%; }
         #map { height: 300px; margin-top: 20px; border: 1px solid #ccc; }
     </style>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Use local Leaflet CSS -->
+    <link rel="stylesheet" href="/leaflet/leaflet.css" />
 </head>
 <body>
     <h2>Emergency Mesh Chat</h2>
@@ -74,20 +74,21 @@
 
     <div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Use local Leaflet JS -->
+    <script src="/leaflet/leaflet.js"></script>
     <script>
-        const ws = new WebSocket(`ws://${location.host}/ws`);
+        // Secure WebSocket depending on page protocol
+        const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
         const chat = document.getElementById('chat');
         let map;
         let markers = {};
         let myLat, myLng;
 
-        // Setup WebSocket
+        // Handle incoming messages
         ws.onmessage = function(event) {
             const data = JSON.parse(event.data);
 
             if (data.sender && data.content) {
-                // Chat message
                 const div = document.createElement('div');
                 div.textContent = `${data.sender}: ${data.content}`;
                 chat.appendChild(div);
@@ -95,7 +96,6 @@
             }
 
             if (data.sender && data.lat && data.lng) {
-                // Location update
                 if (!markers[data.sender]) {
                     markers[data.sender] = L.marker([data.lat, data.lng]).addTo(map).bindPopup(data.sender);
                 } else {
@@ -128,18 +128,16 @@
 
             L.marker([lat, lng]).addTo(map).bindPopup("You").openPopup();
 
-            // Wait for WebSocket to be ready
             ws.onopen = () => {
                 sendLocation(lat, lng);
             };
 
-            // If already open
             if (ws.readyState === WebSocket.OPEN) {
                 sendLocation(lat, lng);
             }
         }
 
-        // Try to get location
+        // Get user's geolocation
         navigator.geolocation.getCurrentPosition(
             function(position) {
                 const lat = position.coords.latitude;
