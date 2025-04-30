@@ -1,52 +1,159 @@
-<!-- index.html -->
+<!--<!-- index.html -->-->
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!---->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+<!--    <title>Mesh Chat</title>-->
+<!--    <style>-->
+<!--        body { font-family: Arial; padding: 20px; background: #f2f2f2; }-->
+<!--        #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; background: #fff; }-->
+<!--        #input { margin-top: 10px; }-->
+<!--    </style>-->
+<!--</head>-->
+<!---->
+<!--<body>-->
+<!--    <h2>Welcome to Mesh Chat</h2>-->
+<!--    <div id="messages"></div>-->
+<!--    <div id="input">-->
+<!--        <input type="text" id="sender" placeholder="Your name" />-->
+<!--        <input type="text" id="message" placeholder="Type your message" />-->
+<!--        <button onclick="sendMessage()">Send</button>-->
+<!--    </div>-->
+<!---->
+<!--    <script>-->
+<!--        // CHANGE THIS TO Phone A's IP!-->
+<!--        const serverIP = "192.168.75.5"; -->
+<!--        const ws = new WebSocket(`ws://${serverIP}:8080/ws`);-->
+<!---->
+<!--        ws.onopen = () => console.log("✅ Connected to server");-->
+<!---->
+<!--        ws.onmessage = (event) => {-->
+<!--            const msg = JSON.parse(event.data);-->
+<!--            const messages = document.getElementById("messages");-->
+<!--            const item = document.createElement("div");-->
+<!--            item.textContent = `${msg.sender}: ${msg.content}`;-->
+<!--            messages.appendChild(item);-->
+<!--            messages.scrollTop = messages.scrollHeight;-->
+<!--        };-->
+<!---->
+<!--        function sendMessage() {-->
+<!--            const sender = document.getElementById("sender").value;-->
+<!--            const content = document.getElementById("message").value;-->
+<!--            if (sender && content) {-->
+<!--                ws.send(JSON.stringify({ sender, content }));-->
+<!--                document.getElementById("message").value = "";-->
+<!--            }-->
+<!--        }-->
+<!--    </script>-->
+<!--</body>-->
+<!---->
+<!--</html>-->
+
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mesh Chat</title>
+    <title>Emergency Mesh Chat + Map</title>
     <style>
-        body { font-family: Arial; padding: 20px; background: #f2f2f2; }
-        #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; background: #fff; }
-        #input { margin-top: 10px; }
+        body { font-family: Arial, sans-serif; }
+        #chat { height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        #msgInput { width: 80%; }
+        #map { height: 300px; margin-top: 20px; border: 1px solid #ccc; }
     </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
-
 <body>
-    <h2>Welcome to Mesh Chat</h2>
-    <div id="messages"></div>
-    <div id="input">
-        <input type="text" id="sender" placeholder="Your name" />
-        <input type="text" id="message" placeholder="Type your message" />
-        <button onclick="sendMessage()">Send</button>
-    </div>
+    <h2>Emergency Mesh Chat</h2>
+    <div id="chat"></div>
+    <input id="nameInput" type="text" placeholder="Your Name" />
+    <input id="msgInput" type="text" placeholder="Type a message" />
+    <button onclick="sendMsg()">Send</button>
 
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // CHANGE THIS TO Phone A's IP!
-        const serverIP = "192.168.75.5"; 
-        const ws = new WebSocket(`ws://${serverIP}:8080/ws`);
+        const ws = new WebSocket(`ws://${location.host}/ws`);
+        const chat = document.getElementById('chat');
+        let map;
+        let markers = {};
+        let myLat, myLng;
 
-        ws.onopen = () => console.log("✅ Connected to server");
+        // Setup WebSocket
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
 
-        ws.onmessage = (event) => {
-            const msg = JSON.parse(event.data);
-            const messages = document.getElementById("messages");
-            const item = document.createElement("div");
-            item.textContent = `${msg.sender}: ${msg.content}`;
-            messages.appendChild(item);
-            messages.scrollTop = messages.scrollHeight;
+            if (data.sender && data.content) {
+                // Chat message
+                const div = document.createElement('div');
+                div.textContent = `${data.sender}: ${data.content}`;
+                chat.appendChild(div);
+                chat.scrollTop = chat.scrollHeight;
+            }
+
+            if (data.sender && data.lat && data.lng) {
+                // Location update
+                if (!markers[data.sender]) {
+                    markers[data.sender] = L.marker([data.lat, data.lng]).addTo(map).bindPopup(data.sender);
+                } else {
+                    markers[data.sender].setLatLng([data.lat, data.lng]);
+                }
+            }
         };
 
-        function sendMessage() {
-            const sender = document.getElementById("sender").value;
-            const content = document.getElementById("message").value;
-            if (sender && content) {
-                ws.send(JSON.stringify({ sender, content }));
-                document.getElementById("message").value = "";
+        function sendMsg() {
+            const name = document.getElementById('nameInput').value;
+            const msg = document.getElementById('msgInput').value;
+            if (!name || !msg) return;
+            ws.send(JSON.stringify({ sender: name, content: msg }));
+            document.getElementById('msgInput').value = '';
+        }
+
+        function sendLocation(lat, lng) {
+            const name = document.getElementById('nameInput').value || "Anonymous";
+            ws.send(JSON.stringify({ sender: name, lat, lng }));
+        }
+
+        function initMap(lat, lng) {
+            myLat = lat;
+            myLng = lng;
+
+            map = L.map('map').setView([lat, lng], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: 'Map data © OpenStreetMap contributors',
+            }).addTo(map);
+
+            L.marker([lat, lng]).addTo(map).bindPopup("You").openPopup();
+
+            // Wait for WebSocket to be ready
+            ws.onopen = () => {
+                sendLocation(lat, lng);
+            };
+
+            // If already open
+            if (ws.readyState === WebSocket.OPEN) {
+                sendLocation(lat, lng);
             }
         }
+
+        // Try to get location
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                initMap(lat, lng);
+            },
+            function(error) {
+                alert("Location permission denied. Defaulting to fallback location.");
+                const fallbackLat = 28.6139; // Delhi
+                const fallbackLng = 77.2090;
+                initMap(fallbackLat, fallbackLng);
+            }
+        );
     </script>
 </body>
-
 </html>
+
