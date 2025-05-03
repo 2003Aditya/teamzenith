@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Messages</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #fff;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    .header {
+    /* border-bottom: 1px solid #000000; */
+      display: flex;
+      align-items: center;
+      margin-bottom: 50px;
+      gap: 25px;
+      font-size: 32px;
+      font-weight: bold;
+      
+    }
+
+    .chat {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .message {
+      display: flex;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 20px;
+      max-width: 75%;
+      font-size: 14px;
+      font-weight: 500;
+      position: relative;
+    }
+
+    .left {
+      background-color: #d5c7f7;
+      align-self: flex-start;
+      border-top-left-radius: 0;
+    }
+
+    .right {
+      background-color: #fdd79d;
+      align-self: flex-end;
+      flex-direction: row-reverse;
+      border-top-right-radius: 0;
+    }
+
+    .message img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      margin: 0 10px;
+    }
+
+    .name {
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+
+    .text {
+      margin: 0;
+    }
+
+    .input-area {
+      position: fixed;
+      bottom: 0;
+      width: 98%;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      background: #fff;
+      border-top: 1px solid #ccc;
+    }
+
+    .input-area input {
+      flex: 1;
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      font-size: 14px;
+      margin-right: 10px;
+    }
+
+    .mic-btn {
+      background-color: #1e90ff;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mic-btn img {
+      width: 22px;
+      height: 22px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span> <img src="icon_back.png" alt="Jacob"></span> Messages
+    </div>
+
+    <div class="chat">
+      <div class="message right">
+        <div>
+          <div class="name">Jacob</div>
+          <div class="text">Hello</div>
+        </div>
+        <img src="Rectangle.png" alt="Jacob">
+      </div>
+
+      <div class="message left">
+        <img src="Rectangle1.png" alt="Alice">
+        <div>
+          <div class="name">Alice</div>
+          <div class="text">Hello!</div>
+        </div>
+      </div>
+
+      <div class="message left">
+        <img src="Rectangle1.png" alt="Alice">
+        <div>
+          <div class="name">Alice</div>
+          <div class="text">How you doing?</div>
+        </div>
+      </div>
+
+      <div class="message right">
+        <div>
+          <div class="name">Jacob</div>
+          <div class="text">Just Fine!</div>
+        </div>
+        <img src="Rectangle.png" alt="Jacob">
+      </div>
+
+      <div class="message right">
+        <div>
+          <div class="name">Jacob</div>
+          <div class="text">Need a little help!</div>
+        </div>
+        <img src="Rectangle.png" alt="Jacob">
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <input type="text" placeholder="Message">
+    <button class="mic-btn">
+      <img src="https://img.icons8.com/ios-filled/50/ffffff/microphone.png" alt="Mic">
+    </button>
+  </div>
+</body>
+</html>

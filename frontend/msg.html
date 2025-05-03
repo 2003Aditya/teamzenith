@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connected Devices</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .devices-title {
+      margin-top: 30px;
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      color: gray;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .device {
+      display: flex;
+      align-items: center;
+      background-color: #eee;
+      padding: 12px 16px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .device img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-right: 12px;
+    }
+
+    .alice { background-color: #f4b1b1; }
+    .bob { background-color: #fce49c; }
+    .andrew { background-color: #d5c7f7; }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: #fff;
+      display: flex;
+      justify-content: space-around;
+      border-top: 1px solid #ddd;
+      padding: 10px 0;
+    }
+
+    .bottom-nav img {
+      width: 30px;
+      height: 30px;
+    }
+
+    .back-arrow {
+      font-size: 24px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span class="back-arrow">&#8592;</span>
+      Connected
+    </div>
+
+    <div class="devices-title">Nearby Devices</div>
+    <div class="subtitle">Connected to 3 Devices</div>
+
+    <div class="device alice">
+      <img src="Rectangle.png" alt="Alice" />
+      Alice
+    </div>
+
+    <div class="device bob">
+      <img src="Rectangle1.png" alt="Bob" />
+      Bob
+    </div>
+
+    <div class="device andrew">
+      <img src="Rectangle2.png" alt="Andrew" />
+      Andrew
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <img src="https://img.icons8.com/fluency/48/network.png" alt="Network" />
+    <img src="https://img.icons8.com/fluency/48/speech-bubble.png" alt="Chat" />
+    <img src="https://img.icons8.com/fluency/48/marker.png" alt="Location" />
+  </div>
+</body>
+</html>
