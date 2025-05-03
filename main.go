@@ -3,20 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
 
 type Message struct {
 	SenderIP string  `json:"sender_ip"`
@@ -27,13 +22,29 @@ type Message struct {
 }
 
 var (
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+
 	clients         = make(map[*websocket.Conn]string)
 	broadcast       = make(chan Message)
 	clientLocations = make(map[string]Message)
+	messageHistory  = []Message{}
+
+	mutex = sync.Mutex{}
+
+	messagesFile  = "messages.json"
+	locationsFile = "locations.json"
 )
 
 func main() {
-	// Serve static files
+	// Load stored messages and locations
+	loadData()
+
 	http.Handle("/leaflet/", http.StripPrefix("/leaflet/", http.FileServer(http.Dir("./leaflet"))))
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", handleConnections)
@@ -41,7 +52,7 @@ func main() {
 	go handleMessages()
 
 	addr := ":8443"
-	fmt.Printf("✅ Secure server started at https://localhost%s\n", addr)
+	fmt.Printf("✅ Offline server running at https://localhost%s\n", addr)
 	log.Fatal(http.ListenAndServeTLS(addr, "cert.pem", "key.pem", nil))
 }
 
@@ -54,38 +65,55 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("❌ WebSocket upgrade failed: %v\n", err)
+		log.Printf("❌ WebSocket upgrade error: %v\n", err)
 		return
 	}
 	defer ws.Close()
 
 	log.Printf("🔌 New client connected: %s\n", ip)
+	mutex.Lock()
 	clients[ws] = ip
+	mutex.Unlock()
 
-	// Send all existing client locations
-	for _, msg := range clientLocations {
-		if err := ws.WriteJSON(msg); err != nil {
-			log.Printf("❌ Error sending existing location to %s: %v\n", ip, err)
-		}
+	// Send message history
+	mutex.Lock()
+	for _, msg := range messageHistory {
+		ws.WriteJSON(msg)
 	}
+	mutex.Unlock()
+
+	// Send current locations
+	mutex.Lock()
+	for _, loc := range clientLocations {
+		ws.WriteJSON(loc)
+	}
+	mutex.Unlock()
 
 	for {
 		var msg Message
 		err := ws.ReadJSON(&msg)
 		if err != nil {
 			log.Printf("⚠️ Client %s disconnected: %v\n", ip, err)
+			mutex.Lock()
 			delete(clients, ws)
 			delete(clientLocations, ip)
+			saveLocations()
+			mutex.Unlock()
 			break
 		}
 
 		msg.SenderIP = ip
-		clientLocations[ip] = msg
 
-		log.Println("🌍 Connected user locations:")
-		for addr, location := range clientLocations {
-			log.Printf("📍 %s => Lat: %.6f, Lng: %.6f\n", addr, location.Lat, location.Lng)
+		mutex.Lock()
+		if msg.Content != "" {
+			messageHistory = append(messageHistory, msg)
+			saveMessages()
 		}
+		if msg.Lat != 0 || msg.Lng != 0 {
+			clientLocations[ip] = msg
+			saveLocations()
+		}
+		mutex.Unlock()
 
 		broadcast <- msg
 	}
@@ -94,14 +122,33 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 func handleMessages() {
 	for {
 		msg := <-broadcast
+		mutex.Lock()
 		for client := range clients {
-			err := client.WriteJSON(msg)
-			if err != nil {
-				log.Printf("❌ Error sending to client %s: %v\n", client.RemoteAddr(), err)
-				client.Close()
-				delete(clients, client)
-			}
+			client.WriteJSON(msg)
 		}
+		mutex.Unlock()
+	}
+}
+
+// 🔽 Save messages to disk
+func saveMessages() {
+	data, _ := json.MarshalIndent(messageHistory, "", "  ")
+	_ = ioutil.WriteFile(messagesFile, data, 0644)
+}
+
+// 🔽 Save locations to disk
+func saveLocations() {
+	data, _ := json.MarshalIndent(clientLocations, "", "  ")
+	_ = ioutil.WriteFile(locationsFile, data, 0644)
+}
+
+// 🔼 Load messages and locations from disk
+func loadData() {
+	if data, err := ioutil.ReadFile(messagesFile); err == nil {
+		_ = json.Unmarshal(data, &messageHistory)
+	}
+	if data, err := ioutil.ReadFile(locationsFile); err == nil {
+		_ = json.Unmarshal(data, &clientLocations)
 	}
 }
 
