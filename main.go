@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -12,14 +13,13 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow any origin for local testing
-		return true
+		return true // Allow all origins (for local testing)
 	},
 }
 
-var clients = make(map[*websocket.Conn]string) // To store clients with their IP address
-var broadcast = make(chan Message)
-var clientLocations = make(map[string]Message)
+var clients = make(map[*websocket.Conn]string)     // WebSocket connections with IP
+var broadcast = make(chan Message)                 // Channel for broadcasting messages
+var clientLocations = make(map[string]Message)     // Latest location per IP
 
 type Message struct {
 	SenderIP string  `json:"sender_ip"`
@@ -29,7 +29,7 @@ type Message struct {
 }
 
 func main() {
-	// Serve static files (e.g., leaflet assets)
+	// Serve static files (e.g., Leaflet)
 	fs := http.FileServer(http.Dir("./leaflet"))
 	http.Handle("/leaflet/", http.StripPrefix("/leaflet/", fs))
 
@@ -39,7 +39,7 @@ func main() {
 	// WebSocket endpoint
 	http.HandleFunc("/ws", handleConnections)
 
-	// Handle broadcasting in a separate goroutine
+	// Handle broadcast in a goroutine
 	go handleMessages()
 
 	addr := ":8443"
@@ -50,7 +50,6 @@ func main() {
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "index.html")
 }
-
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	ip := r.RemoteAddr
@@ -66,7 +65,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	log.Printf("🔌 New client connected: %s\n", ip)
 	clients[ws] = ip
 
-	// Send all existing client locations to the new client
+	// Send all existing client locations to new client
 	for _, msg := range clientLocations {
 		err := ws.WriteJSON(msg)
 		if err != nil {
@@ -85,44 +84,18 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 
 		msg.SenderIP = ip
-		clientLocations[ip] = msg // Store the updated location
+		clientLocations[ip] = msg // Save latest location
+
+		// Log all connected users with their locations
+		log.Println("🌍 Connected user locations:")
+		for ipAddr, location := range clientLocations {
+			log.Printf("📍 %s => Lat: %.6f, Lng: %.6f\n", ipAddr, location.Lat, location.Lng)
+		}
+
+		// Broadcast to all clients
 		broadcast <- msg
 	}
 }
-
-// func handleConnections(w http.ResponseWriter, r *http.Request) {
-// 	// Get the IP address of the client
-// 	ip := r.RemoteAddr
-// 	ip = strings.Split(ip, ":")[0] // Extract the IP address from the remote address
-//
-// 	ws, err := upgrader.Upgrade(w, r, nil)
-// 	if err != nil {
-// 		log.Printf("❌ WebSocket upgrade failed: %v\n", err)
-// 		return
-// 	}
-// 	defer ws.Close()
-//
-// 	log.Printf("🔌 New client connected: %s\n", ip)
-//
-// 	clients[ws] = ip
-//
-// 	// Notify all clients of the new connection with the IP
-// 	broadcast <- Message{SenderIP: ip}
-//
-// 	for {
-// 		var msg Message
-// 		err := ws.ReadJSON(&msg)
-// 		if err != nil {
-// 			log.Printf("⚠️ Client %s disconnected: %v\n", ip, err)
-// 			delete(clients, ws)
-// 			break
-// 		}
-//         msg.SenderIP = ip
-//
-// 		// Broadcast received message to all clients
-// 		broadcast <- msg
-// 	}
-// }
 
 func handleMessages() {
 	for {
