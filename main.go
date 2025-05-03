@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
+	// "os"
 	"strings"
 	"sync"
 
@@ -25,9 +25,7 @@ var (
 	upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
+		CheckOrigin:     func(r *http.Request) bool { return true },
 	}
 
 	clients         = make(map[*websocket.Conn]string)
@@ -35,14 +33,13 @@ var (
 	clientLocations = make(map[string]Message)
 	messageHistory  = []Message{}
 
-	mutex = sync.Mutex{}
+	mutex sync.Mutex
 
 	messagesFile  = "messages.json"
 	locationsFile = "locations.json"
 )
 
 func main() {
-	// Load stored messages and locations
 	loadData()
 
 	http.Handle("/leaflet/", http.StripPrefix("/leaflet/", http.FileServer(http.Dir("./leaflet"))))
@@ -52,7 +49,7 @@ func main() {
 	go handleMessages()
 
 	addr := ":8443"
-	fmt.Printf("✅ Offline server running at https://localhost%s\n", addr)
+	fmt.Printf("✅ Server running at https://localhost%s\n", addr)
 	log.Fatal(http.ListenAndServeTLS(addr, "cert.pem", "key.pem", nil))
 }
 
@@ -65,25 +62,22 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("❌ WebSocket upgrade error: %v\n", err)
+		log.Printf("Upgrade error: %v\n", err)
 		return
 	}
 	defer ws.Close()
 
-	log.Printf("🔌 New client connected: %s\n", ip)
+	log.Printf("New client connected: %s\n", ip)
 	mutex.Lock()
 	clients[ws] = ip
 	mutex.Unlock()
 
-	// Send message history
+	// Send existing messages
 	mutex.Lock()
 	for _, msg := range messageHistory {
 		ws.WriteJSON(msg)
 	}
-	mutex.Unlock()
-
-	// Send current locations
-	mutex.Lock()
+	// Send existing locations
 	for _, loc := range clientLocations {
 		ws.WriteJSON(loc)
 	}
@@ -93,7 +87,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		var msg Message
 		err := ws.ReadJSON(&msg)
 		if err != nil {
-			log.Printf("⚠️ Client %s disconnected: %v\n", ip, err)
+			log.Printf("Client %s disconnected: %v\n", ip, err)
 			mutex.Lock()
 			delete(clients, ws)
 			delete(clientLocations, ip)
@@ -130,19 +124,20 @@ func handleMessages() {
 	}
 }
 
-// 🔽 Save messages to disk
 func saveMessages() {
-	data, _ := json.MarshalIndent(messageHistory, "", "  ")
-	_ = ioutil.WriteFile(messagesFile, data, 0644)
+	data, err := json.MarshalIndent(messageHistory, "", "  ")
+	if err == nil {
+		_ = ioutil.WriteFile(messagesFile, data, 0644)
+	}
 }
 
-// 🔽 Save locations to disk
 func saveLocations() {
-	data, _ := json.MarshalIndent(clientLocations, "", "  ")
-	_ = ioutil.WriteFile(locationsFile, data, 0644)
+	data, err := json.MarshalIndent(clientLocations, "", "  ")
+	if err == nil {
+		_ = ioutil.WriteFile(locationsFile, data, 0644)
+	}
 }
 
-// 🔼 Load messages and locations from disk
 func loadData() {
 	if data, err := ioutil.ReadFile(messagesFile); err == nil {
 		_ = json.Unmarshal(data, &messageHistory)
