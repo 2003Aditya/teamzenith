@@ -19,6 +19,7 @@ var upgrader = websocket.Upgrader{
 
 var clients = make(map[*websocket.Conn]string) // To store clients with their IP address
 var broadcast = make(chan Message)
+var clientLocations = make(map[string]Message)
 
 type Message struct {
 	SenderIP string  `json:"sender_ip"`
