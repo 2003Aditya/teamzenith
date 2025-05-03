@@ -50,10 +50,10 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "index.html")
 }
 
+
 func handleConnections(w http.ResponseWriter, r *http.Request) {
-	// Get the IP address of the client
 	ip := r.RemoteAddr
-	ip = strings.Split(ip, ":")[0] // Extract the IP address from the remote address
+	ip = strings.Split(ip, ":")[0]
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -63,11 +63,15 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	defer ws.Close()
 
 	log.Printf("🔌 New client connected: %s\n", ip)
-
 	clients[ws] = ip
 
-	// Notify all clients of the new connection with the IP
-	broadcast <- Message{SenderIP: ip}
+	// Send all existing client locations to the new client
+	for _, msg := range clientLocations {
+		err := ws.WriteJSON(msg)
+		if err != nil {
+			log.Printf("❌ Error sending existing location to %s: %v\n", ip, err)
+		}
+	}
 
 	for {
 		var msg Message
@@ -75,14 +79,49 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("⚠️ Client %s disconnected: %v\n", ip, err)
 			delete(clients, ws)
+			delete(clientLocations, ip)
 			break
 		}
-        msg.SenderIP = ip
 
-		// Broadcast received message to all clients
+		msg.SenderIP = ip
+		clientLocations[ip] = msg // Store the updated location
 		broadcast <- msg
 	}
 }
+
+// func handleConnections(w http.ResponseWriter, r *http.Request) {
+// 	// Get the IP address of the client
+// 	ip := r.RemoteAddr
+// 	ip = strings.Split(ip, ":")[0] // Extract the IP address from the remote address
+//
+// 	ws, err := upgrader.Upgrade(w, r, nil)
+// 	if err != nil {
+// 		log.Printf("❌ WebSocket upgrade failed: %v\n", err)
+// 		return
+// 	}
+// 	defer ws.Close()
+//
+// 	log.Printf("🔌 New client connected: %s\n", ip)
+//
+// 	clients[ws] = ip
+//
+// 	// Notify all clients of the new connection with the IP
+// 	broadcast <- Message{SenderIP: ip}
+//
+// 	for {
+// 		var msg Message
+// 		err := ws.ReadJSON(&msg)
+// 		if err != nil {
+// 			log.Printf("⚠️ Client %s disconnected: %v\n", ip, err)
+// 			delete(clients, ws)
+// 			break
+// 		}
+//         msg.SenderIP = ip
+//
+// 		// Broadcast received message to all clients
+// 		broadcast <- msg
+// 	}
+// }
 
 func handleMessages() {
 	for {
