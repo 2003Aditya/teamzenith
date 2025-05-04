@@ -6,7 +6,6 @@
 // 	"io/ioutil"
 // 	"log"
 // 	"net/http"
-// 	// "os"
 // 	"strings"
 // 	"sync"
 //
@@ -19,7 +18,7 @@
 // 	Content  string  `json:"content,omitempty"`
 // 	Lat      float64 `json:"lat,omitempty"`
 // 	Lng      float64 `json:"lng,omitempty"`
-//     Avatar   string  `json:"avatar,omitempty"`
+// 	Avatar   string  `json:"avatar,omitempty"`
 // }
 //
 // var (
@@ -29,15 +28,16 @@
 // 		CheckOrigin:     func(r *http.Request) bool { return true },
 // 	}
 //
-// 	clients         = make(map[*websocket.Conn]string)
+// 	clients         = make(map[*websocket.Conn]string)  // WebSocket to IP
 // 	broadcast       = make(chan Message)
-// 	clientLocations = make(map[string]Message)
+// 	clientLocations = make(map[string]Message)          // unique ID -> Message
 // 	messageHistory  = []Message{}
 //
 // 	mutex sync.Mutex
 //
 // 	messagesFile  = "messages.json"
 // 	locationsFile = "locations.json"
+// 	avatars       = []string{"/avatars/avatar1.png", "/avatars/avatar2.png", "/avatars/avatar3.png"} // Avatar list
 // )
 //
 // func main() {
@@ -60,9 +60,8 @@
 // }
 //
 // func handleConnections(w http.ResponseWriter, r *http.Request) {
-// 	ip := strings.Split(r.RemoteAddr, ":")[0]
-//
-//     avatar := fmt.Sprintf("avatars/avatar%d.png", len(clients)%2)
+// 	ip := getIPAddress(r)
+// 	avatar := avatars[len(clients)%len(avatars)] // Random avatar assignment
 //
 // 	ws, err := upgrader.Upgrade(w, r, nil)
 // 	if err != nil {
@@ -70,9 +69,12 @@
 // 		return
 // 	}
 // 	defer ws.Close()
-//     ws.SetReadLimit(20 * 1024)
+// 	ws.SetReadLimit(20 * 1024)
 //
-// 	log.Printf("New client connected: %s\n", ip)
+// 	clientID := fmt.Sprintf("%p", ws)
+//
+// 	log.Printf("New client connected: %s [%s]\n", ip, clientID)
+//
 // 	mutex.Lock()
 // 	clients[ws] = ip
 // 	mutex.Unlock()
@@ -80,9 +82,9 @@
 // 	// Send existing messages
 // 	mutex.Lock()
 // 	for _, msg := range messageHistory {
-//         if msg.Avatar == "" {
-//             msg.Avatar = avatar
-//         }
+// 		if msg.Avatar == "" {
+// 			msg.Avatar = avatar
+// 		}
 // 		ws.WriteJSON(msg)
 // 	}
 // 	// Send existing locations
@@ -98,16 +100,16 @@
 // 			log.Printf("Client %s disconnected: %v\n", ip, err)
 // 			mutex.Lock()
 // 			delete(clients, ws)
-// 			delete(clientLocations, ip)
+// 			delete(clientLocations, clientID)
 // 			saveLocations()
 // 			mutex.Unlock()
 // 			break
 // 		}
 //
 // 		msg.SenderIP = ip
-//         msg.Avatar = avatar
+// 		msg.Avatar = avatar
 //
-//         log.Printf(":messages received from %s: %v\n", ip, msg)
+// 		log.Printf("📨 Message from %s: %+v\n", ip, msg)
 //
 // 		mutex.Lock()
 // 		if msg.Content != "" {
@@ -115,11 +117,12 @@
 // 			saveMessages()
 // 		}
 // 		if msg.Lat != 0 || msg.Lng != 0 {
-// 			clientLocations[ip] = msg
+// 			clientLocations[clientID] = msg
 // 			saveLocations()
 // 		}
 // 		mutex.Unlock()
 //
+// 		// Broadcast message to all connected clients
 // 		broadcast <- msg
 // 	}
 // }
@@ -158,6 +161,17 @@
 // 	}
 // }
 //
+// func getIPAddress(r *http.Request) string {
+// 	// Prefer X-Forwarded-For for real IP if available
+// 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+// 		parts := strings.Split(forwarded, ",")
+// 		return strings.TrimSpace(parts[0])
+// 	}
+// 	ip := strings.Split(r.RemoteAddr, ":")[0]
+// 	return ip
+// }
+//
+
 
 package main
 
@@ -189,16 +203,16 @@ var (
 		CheckOrigin:     func(r *http.Request) bool { return true },
 	}
 
-	clients         = make(map[*websocket.Conn]string)  // WebSocket to IP
+	clients         = make(map[*websocket.Conn]string)
 	broadcast       = make(chan Message)
-	clientLocations = make(map[string]Message)          // unique ID -> Message
+	clientLocations = make(map[string]Message)
 	messageHistory  = []Message{}
 
 	mutex sync.Mutex
 
 	messagesFile  = "messages.json"
 	locationsFile = "locations.json"
-	avatars       = []string{"/avatars/avatar1.png", "/avatars/avatar2.png", "/avatars/avatar3.png"} // Avatar list
+	avatars       = []string{"/avatars/avatar1.png", "/avatars/avatar2.png", "/avatars/avatar3.png"}
 )
 
 func main() {
@@ -207,6 +221,7 @@ func main() {
 	http.Handle("/leaflet/", http.StripPrefix("/leaflet/", http.FileServer(http.Dir("./leaflet"))))
 	http.Handle("/avatars/", http.StripPrefix("/avatars/", http.FileServer(http.Dir("./avatars"))))
 	http.HandleFunc("/", serveHome)
+	http.HandleFunc("/users", handleUsers)
 	http.HandleFunc("/ws", handleConnections)
 
 	go handleMessages()
@@ -220,9 +235,22 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "index.html")
 }
 
+func handleUsers(w http.ResponseWriter, r *http.Request) {
+    mutex.Lock()
+    defer mutex.Unlock()
+
+    var users []Message
+    for _, msg := range clientLocations {
+        users = append(users, msg)
+    }
+    w.Header().Set("content-type", "application/json")
+    json.NewEncoder(w).Encode(users)
+
+}
+
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	ip := getIPAddress(r)
-	avatar := avatars[len(clients)%len(avatars)] // Random avatar assignment
+	avatar := avatars[len(clients)%len(avatars)]
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -233,14 +261,12 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	ws.SetReadLimit(20 * 1024)
 
 	clientID := fmt.Sprintf("%p", ws)
-
 	log.Printf("New client connected: %s [%s]\n", ip, clientID)
 
 	mutex.Lock()
 	clients[ws] = ip
 	mutex.Unlock()
 
-	// Send existing messages
 	mutex.Lock()
 	for _, msg := range messageHistory {
 		if msg.Avatar == "" {
@@ -248,7 +274,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 		ws.WriteJSON(msg)
 	}
-	// Send existing locations
 	for _, loc := range clientLocations {
 		ws.WriteJSON(loc)
 	}
@@ -283,7 +308,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 		mutex.Unlock()
 
-		// Broadcast message to all connected clients
 		broadcast <- msg
 	}
 }
@@ -323,7 +347,6 @@ func loadData() {
 }
 
 func getIPAddress(r *http.Request) string {
-	// Prefer X-Forwarded-For for real IP if available
 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
 		parts := strings.Split(forwarded, ",")
 		return strings.TrimSpace(parts[0])
