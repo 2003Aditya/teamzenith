@@ -1,3 +1,4 @@
+
 package main
 
 import (
@@ -19,6 +20,7 @@ type Message struct {
 	Lat      float64 `json:"lat,omitempty"`
 	Lng      float64 `json:"lng,omitempty"`
 	Avatar   string  `json:"avatar,omitempty"`
+	IsRescue     bool  `json:"is_rescue"` // New field for the unique flag
 }
 
 var (
@@ -70,7 +72,6 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(users)
-
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
@@ -92,6 +93,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	clients[ws] = ip
 	mutex.Unlock()
 
+	// Send previous messages and locations to the new client
 	mutex.Lock()
 	for _, msg := range messageHistory {
 		if msg.Avatar == "" {
@@ -120,6 +122,11 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		msg.SenderIP = ip
 		msg.Avatar = avatar
 
+		// ✅ Identify rescue personnel
+		if msg.Sender == "1234554321" {
+			msg.IsRescue = true
+		}
+
 		log.Printf("📨 Message from %s: %+v\n", ip, msg)
 
 		mutex.Lock()
@@ -136,6 +143,76 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		broadcast <- msg
 	}
 }
+
+
+// func handleConnections(w http.ResponseWriter, r *http.Request) {
+// 	ip := getIPAddress(r)
+// 	avatar := avatars[len(clients)%len(avatars)]
+//
+// 	ws, err := upgrader.Upgrade(w, r, nil)
+// 	if err != nil {
+// 		log.Printf("Upgrade error: %v\n", err)
+// 		return
+// 	}
+// 	defer ws.Close()
+// 	ws.SetReadLimit(20 * 1024)
+//
+// 	clientID := fmt.Sprintf("%p", ws)
+// 	log.Printf("New client connected: %s [%s]\n", ip, clientID)
+//
+// 	mutex.Lock()
+// 	clients[ws] = ip
+// 	mutex.Unlock()
+//
+// 	mutex.Lock()
+// 	for _, msg := range messageHistory {
+// 		if msg.Avatar == "" {
+// 			msg.Avatar = avatar
+// 		}
+// 		ws.WriteJSON(msg)
+// 	}
+// 	for _, loc := range clientLocations {
+// 		ws.WriteJSON(loc)
+// 	}
+// 	mutex.Unlock()
+//
+// 	for {
+// 		var msg Message
+// 		err := ws.ReadJSON(&msg)
+// 		if err != nil {
+// 			log.Printf("Client %s disconnected: %v\n", ip, err)
+// 			mutex.Lock()
+// 			delete(clients, ws)
+// 			delete(clientLocations, clientID)
+// 			saveLocations()
+// 			mutex.Unlock()
+// 			break
+// 		}
+//
+// 		msg.SenderIP = ip
+// 		msg.Avatar = avatar
+//
+// 		// Check if the sender's name is a numeric string
+// 		if isNumericString(msg.Sender) {
+// 			msg.Flag = generateUniqueFlag(msg.Sender)
+// 		}
+//
+// 		log.Printf("📨 Message from %s: %+v\n", ip, msg)
+//
+// 		mutex.Lock()
+// 		if msg.Content != "" {
+// 			messageHistory = append(messageHistory, msg)
+// 			saveMessages()
+// 		}
+// 		if msg.Lat != 0 || msg.Lng != 0 {
+// 			clientLocations[clientID] = msg
+// 			saveLocations()
+// 		}
+// 		mutex.Unlock()
+//
+// 		broadcast <- msg
+// 	}
+// }
 
 func handleMessages() {
 	for {
@@ -179,3 +256,20 @@ func getIPAddress(r *http.Request) string {
 	ip := strings.Split(r.RemoteAddr, ":")[0]
 	return ip
 }
+
+// Helper function to check if the string is numeric
+func isNumericString(s string) bool {
+	for _, char := range s {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// Helper function to generate a unique flag for numeric names
+func generateUniqueFlag(name string) string {
+	// Generate a simple unique identifier based on the name (can be extended as needed)
+	return fmt.Sprintf("flag-%s", name)
+}
+
