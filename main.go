@@ -190,9 +190,9 @@ var (
 		CheckOrigin:     func(r *http.Request) bool { return true },
 	}
 
-	clients         = make(map[*websocket.Conn]string)
+	clients         = make(map[*websocket.Conn]string)  // WebSocket to IP
 	broadcast       = make(chan Message)
-	clientLocations = make(map[string]Message)
+	clientLocations = make(map[string]Message)          // unique ID -> Message
 	messageHistory  = []Message{}
 
 	mutex sync.Mutex
@@ -212,7 +212,7 @@ func main() {
 	go handleMessages()
 
 	addr := ":8443"
-	fmt.Printf("\u2705 Server running at https://localhost%s\n", addr)
+	fmt.Printf("✅ Server running at https://localhost%s\n", addr)
 	log.Fatal(http.ListenAndServeTLS(addr, "cert.pem", "key.pem", nil))
 }
 
@@ -221,12 +221,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
-	ip := r.Header.Get("X-Forwarded-For")
-	if ip == "" {
-		ip = strings.Split(r.RemoteAddr, ":")[0]
-	}
-	fmt.Println("Client connected from IP:", ip)
-
+	ip := getIPAddress(r)
 	avatar := fmt.Sprintf("avatars/avatar%d.png", len(clients)%2)
 
 	ws, err := upgrader.Upgrade(w, r, nil)
@@ -237,14 +232,23 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	defer ws.Close()
 	ws.SetReadLimit(20 * 1024)
 
+	clientID := fmt.Sprintf("%p", ws)
+
+	log.Printf("New client connected: %s [%s]\n", ip, clientID)
+
 	mutex.Lock()
 	clients[ws] = ip
 	mutex.Unlock()
 
+	// Send existing messages
 	mutex.Lock()
 	for _, msg := range messageHistory {
+		if msg.Avatar == "" {
+			msg.Avatar = avatar
+		}
 		ws.WriteJSON(msg)
 	}
+	// Send existing locations
 	for _, loc := range clientLocations {
 		ws.WriteJSON(loc)
 	}
@@ -257,7 +261,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Client %s disconnected: %v\n", ip, err)
 			mutex.Lock()
 			delete(clients, ws)
-			delete(clientLocations, ip)
+			delete(clientLocations, clientID)
 			saveLocations()
 			mutex.Unlock()
 			break
@@ -266,7 +270,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		msg.SenderIP = ip
 		msg.Avatar = avatar
 
-		log.Printf("Message received from %s: %v\n", ip, msg)
+		log.Printf("📨 Message from %s: %+v\n", ip, msg)
 
 		mutex.Lock()
 		if msg.Content != "" {
@@ -274,7 +278,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			saveMessages()
 		}
 		if msg.Lat != 0 || msg.Lng != 0 {
-			clientLocations[ip] = msg
+			clientLocations[clientID] = msg
 			saveLocations()
 		}
 		mutex.Unlock()
@@ -315,5 +319,15 @@ func loadData() {
 	if data, err := ioutil.ReadFile(locationsFile); err == nil {
 		_ = json.Unmarshal(data, &clientLocations)
 	}
+}
+
+func getIPAddress(r *http.Request) string {
+	// Prefer X-Forwarded-For for real IP if available
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		parts := strings.Split(forwarded, ",")
+		return strings.TrimSpace(parts[0])
+	}
+	ip := strings.Split(r.RemoteAddr, ":")[0]
+	return ip
 }
 
