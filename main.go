@@ -19,6 +19,7 @@ type Message struct {
 	Content  string  `json:"content,omitempty"`
 	Lat      float64 `json:"lat,omitempty"`
 	Lng      float64 `json:"lng,omitempty"`
+    Avatar   string  `json:"avatar,omitempty"`
 }
 
 var (
@@ -43,6 +44,7 @@ func main() {
 	loadData()
 
 	http.Handle("/leaflet/", http.StripPrefix("/leaflet/", http.FileServer(http.Dir("./leaflet"))))
+	http.Handle("/avatars/", http.StripPrefix("/avatars/", http.FileServer(http.Dir("./avatars"))))
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", handleConnections)
 
@@ -60,12 +62,15 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	ip := strings.Split(r.RemoteAddr, ":")[0]
 
+    avatar := fmt.Sprintf("avatars/avatar%d.png", len(clients)%2)
+
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("Upgrade error: %v\n", err)
 		return
 	}
 	defer ws.Close()
+    ws.SetReadLimit(20 * 1024)
 
 	log.Printf("New client connected: %s\n", ip)
 	mutex.Lock()
@@ -75,6 +80,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	// Send existing messages
 	mutex.Lock()
 	for _, msg := range messageHistory {
+        if msg.Avatar == "" {
+            msg.Avatar = avatar
+        }
 		ws.WriteJSON(msg)
 	}
 	// Send existing locations
@@ -97,6 +105,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 
 		msg.SenderIP = ip
+        msg.Avatar = avatar
+
+        log.Printf(":messages received from %s: %v\n", ip, msg)
 
 		mutex.Lock()
 		if msg.Content != "" {

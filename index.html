@@ -8,6 +8,11 @@
     #chat { height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
     #msgInput { width: 80%; }
     #map { height: 300px; margin-top: 20px; border: 1px solid #ccc; }
+    .message { display: flex; align-items: center; margin-bottom: 10px; }
+    .message img.avatar { width: 32px; height: 32px; border-radius: 50%; margin-right: 10px; }
+    .message .bubble { background-color: #f1f1f1; padding: 10px; border-radius: 10px; }
+    .mine .bubble { background-color: #daf8da; }
+    .other .bubble { background-color: #f0f0f0; }
   </style>
   <link rel="stylesheet" href="/leaflet/leaflet.css" />
 </head>
@@ -27,13 +32,43 @@
     const markers = {};
     let map, myLat, myLng;
 
+    // List of avatar images
+    const avatars = [
+      "/avatars/avatar1.png",
+      "/avatars/avatar2.png",
+      <!--"/avatars/avatar3.png"-->
+    ];
+
     ws.onmessage = function(event) {
       const data = JSON.parse(event.data);
 
-      // Display chat message
+      // Display chat message with avatar
       if (data.sender && data.content) {
         const div = document.createElement('div');
-        div.textContent = `${data.sender}: ${data.content}`;
+        div.classList.add('message');
+
+        const isMine = data.sender === document.getElementById('nameInput').value;
+        div.classList.add(isMine ? 'mine' : 'other');
+
+        // Avatar image
+        const avatarImg = document.createElement('img');
+        avatarImg.src = data.avatar || '/avatars/avatar1.png';  // Default avatar
+        avatarImg.alt = "avatar";
+        avatarImg.classList.add("avatar");
+
+        // Message bubble
+        const text = document.createElement('div');
+        text.textContent = `${data.sender}: ${data.content}`;
+        text.classList.add("bubble");
+
+        if (isMine) {
+          div.appendChild(text);
+          div.appendChild(avatarImg);
+        } else {
+          div.appendChild(avatarImg);
+          div.appendChild(text);
+        }
+
         chat.appendChild(div);
         chat.scrollTop = chat.scrollHeight;
       }
@@ -53,7 +88,12 @@
       const name = document.getElementById('nameInput').value || "Anonymous";
       const msg = document.getElementById('msgInput').value;
       if (!msg) return;
-      ws.send(JSON.stringify({ sender: name, content: msg }));
+
+      // Randomly select an avatar for the sender
+      const avatar = avatars[Math.floor(Math.random() * avatars.length)];
+
+      // Send message with avatar
+      ws.send(JSON.stringify({ sender: name, content: msg, avatar }));
       document.getElementById('msgInput').value = '';
     }
 
