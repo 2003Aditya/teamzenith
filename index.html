@@ -130,78 +130,432 @@
 <!--  </script>-->
 <!--</body>-->
 <!--</html>-->
+
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+<!--  <meta charset="UTF-8" />-->
+<!--  <title>Emergency Mesh Chat + Map</title>-->
+<!--  <style>-->
+<!--    body { font-family: Arial, sans-serif; }-->
+<!--    #chat { height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }-->
+<!--    #msgInput { width: 80%; }-->
+<!--    #map { height: 300px; margin-top: 20px; border: 1px solid #ccc; }-->
+<!--    .message { display: flex; align-items: center; margin-bottom: 10px; }-->
+<!--    .message img.avatar { width: 32px; height: 32px; border-radius: 50%; margin-right: 10px; }-->
+<!--    .message .bubble { background-color: #f1f1f1; padding: 10px; border-radius: 10px; }-->
+<!--    .mine .bubble { background-color: #daf8da; }-->
+<!--    .other .bubble { background-color: #f0f0f0; }-->
+<!--    #connectedDevices { margin-top: 20px; }-->
+<!--    #connectedDevices ul { list-style-type: none; padding: 0; }-->
+<!--    #connectedDevices li { margin-bottom: 10px; }-->
+<!--  </style>-->
+<!--  <link rel="stylesheet" href="/leaflet/leaflet.css" />-->
+<!--</head>-->
+<!--<body>-->
+<!--  <h2>Emergency Mesh Chat</h2>-->
+<!--  <div id="chat"></div>-->
+<!--  <input id="nameInput" type="text" placeholder="Your Name" />-->
+<!--  <input id="msgInput" type="text" placeholder="Type a message" />-->
+<!--  <button onclick="sendMsg()">Send</button>-->
 <!---->
+<!--  <div id="map"></div>-->
+<!---->
+<!--  <div id="connectedDevices">-->
+<!--    <h3>Connected Devices</h3>-->
+<!--    <ul id="devicesList"></ul>-->
+<!--  </div>-->
+<!---->
+<!--  <script src="/leaflet/leaflet.js"></script>-->
+<!--  <script>-->
+<!--    const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);-->
+<!--    const chat = document.getElementById('chat');-->
+<!--    const markers = {};-->
+<!--    const devicesList = document.getElementById('devicesList');-->
+<!--    let map, myLat, myLng;-->
+<!---->
+<!--    // List of avatar images-->
+<!--    const avatars = [-->
+<!--      "/avatars/avatar1.png",-->
+<!--      "/avatars/avatar2.png",-->
+<!--      //"/avatars/avatar3.png"-->
+<!--    ];-->
+<!---->
+<!--    const connectedDevices = {}; // Store connected devices and their locations-->
+<!---->
+<!--    ws.onmessage = function(event) {-->
+<!--      const data = JSON.parse(event.data);-->
+<!---->
+<!--      // Display chat message with avatar-->
+<!--      if (data.sender && data.content) {-->
+<!--        const div = document.createElement('div');-->
+<!--        div.classList.add('message');-->
+<!---->
+<!--        const isMine = data.sender === document.getElementById('nameInput').value;-->
+<!--        div.classList.add(isMine ? 'mine' : 'other');-->
+<!---->
+<!--        // Avatar image-->
+<!--        const avatarImg = document.createElement('img');-->
+<!--        avatarImg.src = data.avatar || '/avatars/avatar1.png';  // Default avatar-->
+<!--        avatarImg.alt = "avatar";-->
+<!--        avatarImg.classList.add("avatar");-->
+<!---->
+<!--        // Message bubble-->
+<!--        const text = document.createElement('div');-->
+<!--        text.textContent = `${data.sender}: ${data.content}`;-->
+<!--        text.classList.add("bubble");-->
+<!---->
+<!--        if (isMine) {-->
+<!--          div.appendChild(text);-->
+<!--          div.appendChild(avatarImg);-->
+<!--        } else {-->
+<!--          div.appendChild(avatarImg);-->
+<!--          div.appendChild(text);-->
+<!--        }-->
+<!---->
+<!--        chat.appendChild(div);-->
+<!--        chat.scrollTop = chat.scrollHeight;-->
+<!--      }-->
+<!---->
+<!--      // Show marker for user location-->
+<!--      if (data.lat && data.lng) {-->
+<!--        const label = data.sender || data.sender_ip || "Unknown";-->
+<!--        if (!markers[label]) {-->
+<!--          markers[label] = L.marker([data.lat, data.lng]).addTo(map).bindPopup(label);-->
+<!--        } else {-->
+<!--          markers[label].setLatLng([data.lat, data.lng]);-->
+<!--        }-->
+<!---->
+<!--        // Update the connected devices list-->
+<!--        connectedDevices[label] = { lat: data.lat, lng: data.lng };-->
+<!--        updateConnectedDevicesList();-->
+<!--      }-->
+<!--    };-->
+<!---->
+<!--    function sendMsg() {-->
+<!--      const name = document.getElementById('nameInput').value || "Anonymous";-->
+<!--      const msg = document.getElementById('msgInput').value;-->
+<!--      if (!msg) return;-->
+<!---->
+<!--      // Randomly select an avatar for the sender-->
+<!--      const avatar = avatars[Math.floor(Math.random() * avatars.length)];-->
+<!---->
+<!--      // Send message with avatar-->
+<!--      ws.send(JSON.stringify({ sender: name, content: msg, avatar }));-->
+<!--      document.getElementById('msgInput').value = '';-->
+<!--    }-->
+<!---->
+<!--    function sendLocation(lat, lng) {-->
+<!--      const name = document.getElementById('nameInput').value || "Anonymous";-->
+<!--      ws.send(JSON.stringify({ sender: name, lat, lng }));-->
+<!--    }-->
+<!---->
+<!--    function initMap(lat, lng) {-->
+<!--      myLat = lat;-->
+<!--      myLng = lng;-->
+<!---->
+<!--      map = L.map('map').setView([lat, lng], 13);-->
+<!--      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {-->
+<!--        attribution: 'Map data © OpenStreetMap contributors',-->
+<!--      }).addTo(map);-->
+<!---->
+<!--      L.marker([lat, lng]).addTo(map).bindPopup("You").openPopup();-->
+<!---->
+<!--      if (ws.readyState === WebSocket.OPEN) {-->
+<!--        sendLocation(lat, lng);-->
+<!--      } else {-->
+<!--        ws.onopen = () => sendLocation(lat, lng);-->
+<!--      }-->
+<!--    }-->
+<!---->
+<!--    function updateConnectedDevicesList() {-->
+<!--      devicesList.innerHTML = ""; // Clear the list-->
+<!--      for (let label in connectedDevices) {-->
+<!--        const device = connectedDevices[label];-->
+<!--        const li = document.createElement('li');-->
+<!--        li.textContent = `${label} - Lat: ${device.lat.toFixed(6)}, Lng: ${device.lng.toFixed(6)}`;-->
+<!--        devicesList.appendChild(li);-->
+<!--      }-->
+<!--    }-->
+<!---->
+<!--    navigator.geolocation.getCurrentPosition(-->
+<!--      position => initMap(position.coords.latitude, position.coords.longitude),-->
+<!--      () => {-->
+<!--        alert("Location permission denied. Using fallback location.");-->
+<!--        initMap(28.6139, 77.2090); // Delhi fallback-->
+<!--      }-->
+<!--    );-->
+<!--  </script>-->
+<!--</body>-->
+<!--</html>-->
+<!---->
+
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Emergency Mesh Chat + Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; }
-    #chat { height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
-    #msgInput { width: 80%; }
-    #map { height: 300px; margin-top: 20px; border: 1px solid #ccc; }
-    .message { display: flex; align-items: center; margin-bottom: 10px; }
-    .message img.avatar { width: 32px; height: 32px; border-radius: 50%; margin-right: 10px; }
-    .message .bubble { background-color: #f1f1f1; padding: 10px; border-radius: 10px; }
-    .mine .bubble { background-color: #daf8da; }
-    .other .bubble { background-color: #f0f0f0; }
-    #connectedDevices { margin-top: 20px; }
-    #connectedDevices ul { list-style-type: none; padding: 0; }
-    #connectedDevices li { margin-bottom: 10px; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background-color: #2193b0;
+      color: #fff;
+    }
+
+    h2 {
+      text-align: center;
+      margin: 20px;
+      font-size: 2rem;
+      font-weight: 600;
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: space-around;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background-color: #2e3b4e;
+      border-top: 2px solid #ccc;
+      padding: 10px 0;
+      z-index: 10;
+    }
+
+    .tab {
+      text-align: center;
+      padding: 10px;
+      font-size: 1rem;
+      color: #b0b8bf;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .tab.active {
+      color: #fff;
+      background-color: #4e5d6b;
+      border-radius: 5px 5px 0 0;
+      font-weight: bold;
+    }
+
+    .tab:hover {
+      background-color: #3a4855;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 15px;
+      overflow-y: auto;
+      flex: 1;
+      position: absolute;
+      top: 80px;
+      bottom: 60px;
+      width: 100%;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    #chat {
+      background-color: rgba(255, 255, 255, 0.8);
+      height: 60vh;
+      overflow-y: scroll;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 15px;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .input-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    #nameInput, #msgInput {
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+      background-color: #fff;
+      color: #000;
+    }
+
+    #nameInput {
+      flex: 1 1 20%;
+      min-width: 100px;
+    }
+
+    #msgInput {
+      flex: 1 1 60%;
+      min-width: 150px;
+    }
+
+    button {
+      flex: 1 1 15%;
+      min-width: 80px;
+      padding: 10px;
+      background-color: #4e5d6b;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #3a4855;
+    }
+
+    .message {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      color: #000;
+    }
+
+    .message img.avatar {
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      margin-right: 10px;
+      border: 2px solid #ffffff;
+    }
+
+    .message .bubble {
+      background-color: #e0e0e0;
+      padding: 10px;
+      border-radius: 15px;
+      max-width: 70%;
+      font-size: 1rem;
+    }
+
+    .mine .bubble {
+      background-color: #F4CE9B;
+    }
+
+    .other .bubble {
+      background-color: #fff;
+    }
+
+    #map {
+      width: 100%;
+      height: 70vh;
+      border-radius: 10px;
+    }
+
+    #settingsTab {
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 10px;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 768px) {
+      h2 {
+        font-size: 1.5rem;
+      }
+      .tab {
+        font-size: 0.9rem;
+        padding: 8px;
+      }
+      .message img.avatar {
+        width: 35px;
+        height: 35px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .tab-content {
+        top: 70px;
+        bottom: 60px;
+        padding: 10px;
+      }
+
+      #chat {
+        height: 50vh;
+      }
+
+      .input-group {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
   </style>
-  <link rel="stylesheet" href="/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
 </head>
 <body>
   <h2>Emergency Mesh Chat</h2>
-  <div id="chat"></div>
-  <input id="nameInput" type="text" placeholder="Your Name" />
-  <input id="msgInput" type="text" placeholder="Type a message" />
-  <button onclick="sendMsg()">Send</button>
 
-  <div id="map"></div>
-
-  <div id="connectedDevices">
-    <h3>Connected Devices</h3>
-    <ul id="devicesList"></ul>
+  <!-- Chat Tab -->
+  <div id="chatTab" class="tab-content active">
+    <div id="chat"></div>
+    <div class="input-group">
+      <input id="nameInput" type="text" placeholder="Your Name" />
+      <input id="msgInput" type="text" placeholder="Type a message" />
+      <button onclick="sendMsg()">Send</button>
+    </div>
   </div>
 
-  <script src="/leaflet/leaflet.js"></script>
+  <!-- Map Tab -->
+  <div id="mapTab" class="tab-content">
+    <div id="map"></div>
+  </div>
+
+  <!-- Settings Tab -->
+  <div id="settingsTab" class="tab-content">
+    <h3>Connected Devices</h3>
+    <p>More settings options can go here.</p>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('chatTab')">Chat</div>
+    <div class="tab" onclick="showTab('mapTab')">Map</div>
+    <div class="tab" onclick="showTab('settingsTab')">Network</div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
   <script>
     const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
     const chat = document.getElementById('chat');
     const markers = {};
-    const devicesList = document.getElementById('devicesList');
-    let map, myLat, myLng;
+    let map, myLat, myLng, avatar;
+    let mapInitialized = false;
 
-    // List of avatar images
-    const avatars = [
-      "/avatars/avatar1.png",
-      "/avatars/avatar2.png",
-      //"/avatars/avatar3.png"
-    ];
-
-    const connectedDevices = {}; // Store connected devices and their locations
+    avatar = `avatars/avatar${Math.floor(Math.random() * 2) + 1}.png`;
 
     ws.onmessage = function(event) {
       const data = JSON.parse(event.data);
-
-      // Display chat message with avatar
       if (data.sender && data.content) {
         const div = document.createElement('div');
         div.classList.add('message');
-
         const isMine = data.sender === document.getElementById('nameInput').value;
         div.classList.add(isMine ? 'mine' : 'other');
 
-        // Avatar image
         const avatarImg = document.createElement('img');
-        avatarImg.src = data.avatar || '/avatars/avatar1.png';  // Default avatar
-        avatarImg.alt = "avatar";
+        avatarImg.src = data.avatar || '/avatars/avatar1.png';
         avatarImg.classList.add("avatar");
 
-        // Message bubble
         const text = document.createElement('div');
         text.textContent = `${data.sender}: ${data.content}`;
         text.classList.add("bubble");
@@ -218,7 +572,6 @@
         chat.scrollTop = chat.scrollHeight;
       }
 
-      // Show marker for user location
       if (data.lat && data.lng) {
         const label = data.sender || data.sender_ip || "Unknown";
         if (!markers[label]) {
@@ -226,10 +579,6 @@
         } else {
           markers[label].setLatLng([data.lat, data.lng]);
         }
-
-        // Update the connected devices list
-        connectedDevices[label] = { lat: data.lat, lng: data.lng };
-        updateConnectedDevicesList();
       }
     };
 
@@ -238,17 +587,13 @@
       const msg = document.getElementById('msgInput').value;
       if (!msg) return;
 
-      // Randomly select an avatar for the sender
-      const avatar = avatars[Math.floor(Math.random() * avatars.length)];
-
-      // Send message with avatar
       ws.send(JSON.stringify({ sender: name, content: msg, avatar }));
       document.getElementById('msgInput').value = '';
     }
 
     function sendLocation(lat, lng) {
       const name = document.getElementById('nameInput').value || "Anonymous";
-      ws.send(JSON.stringify({ sender: name, lat, lng }));
+      ws.send(JSON.stringify({ sender: name, lat, lng, avatar }));
     }
 
     function initMap(lat, lng) {
@@ -267,25 +612,58 @@
       } else {
         ws.onopen = () => sendLocation(lat, lng);
       }
+
+      mapInitialized = true;
     }
 
-    function updateConnectedDevicesList() {
-      devicesList.innerHTML = ""; // Clear the list
-      for (let label in connectedDevices) {
-        const device = connectedDevices[label];
-        const li = document.createElement('li');
-        li.textContent = `${label} - Lat: ${device.lat}, Lng: ${device.lng}`;
-        devicesList.appendChild(li);
-      }
+    function watchLocation() {
+      navigator.geolocation.watchPosition(
+        position => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          if (myLat !== lat || myLng !== lng) {
+            myLat = lat;
+            myLng = lng;
+            sendLocation(lat, lng);
+            if (mapInitialized) {
+              map.setView([lat, lng]);
+            }
+          }
+        },
+        () => {
+          alert("Location permission denied. Using fallback location.");
+          initMap(28.6139, 77.2090);
+        }
+      );
     }
 
     navigator.geolocation.getCurrentPosition(
       position => initMap(position.coords.latitude, position.coords.longitude),
       () => {
         alert("Location permission denied. Using fallback location.");
-        initMap(28.6139, 77.2090); // Delhi fallback
+        initMap(28.6139, 77.2090);
       }
     );
+
+    watchLocation();
+
+    function showTab(tabId) {
+      const tabs = document.querySelectorAll('.tab');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      tabs.forEach(tab => tab.classList.remove('active'));
+      tabContents.forEach(content => content.classList.remove('active'));
+
+      document.querySelector(`.tab[onclick="showTab('${tabId}')"]`).classList.add('active');
+      const tabContent = document.getElementById(tabId);
+      tabContent.classList.add('active');
+
+      if (tabId === 'mapTab' && map) {
+        setTimeout(() => {
+          map.invalidateSize();
+        }, 300);
+      }
+    }
   </script>
 </body>
 </html>
