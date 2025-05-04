@@ -23,6 +23,19 @@
             background-color: #2193b0;
             color: #fff;
         }
+        .tab-content {
+            display: none;
+            padding: 20px;
+
+            overflow-y: auto;
+            flex: 1;
+            color: #000000;
+            position: absolute;
+            top: 60px; /* enough space for the heading */
+            bottom: 0%; /* space for tab bar */
+            width: 100%;
+            font-size: 2rem;;
+        }
 
         h2 {
             text-align: center;
@@ -164,7 +177,7 @@
 
         #map {
             width: 100%;
-            height: 70vh;
+            height: 72vh;
             border-radius: 10px;
         }
 
@@ -230,15 +243,24 @@
 
         <!-- Settings Tab -->
         <div id="settingsTab" class="tab-content">
-            <h3>Connected Devices</h3>
-            <ul id="userList"></ul>
+            <h3>Help & Suppport</h3>
+            <p>✅ Keep the app open or running in background.<br>
+
+                ✅ Stay within range of other devices (Wi-Fi Direct range).<br>
+
+                🚫 Don’t turn off Wi-Fi or battery saver, as this may disconnect you from the mesh.<br>
+
+                ✅ Text Communication: Use the chat feature to coordinate with others or respond to community check-ins.
+
+            </p>
+
         </div>
 
         <!-- Tab Navigation -->
         <div class="tabs">
             <div class="tab active" onclick="showTab('chatTab')">Chat</div>
             <div class="tab" onclick="showTab('mapTab')">Map</div>
-            <div class="tab" onclick="showTab('settingsTab')">Network</div>
+            <div class="tab" onclick="showTab('settingsTab')">Help & Support</div>
         </div>
 
         <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
@@ -319,7 +341,7 @@
 
             map = L.map('map').setView([lat, lng], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: 'Map data © OpenStreetMap contributors',
+                attribution: 'By TeamZenith',
             }).addTo(map);
 
             L.marker([lat, lng]).addTo(map).bindPopup("You").openPopup();

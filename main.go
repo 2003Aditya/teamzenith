@@ -1,178 +1,3 @@
-// package main
-//
-// import (
-// 	"encoding/json"
-// 	"fmt"
-// 	"io/ioutil"
-// 	"log"
-// 	"net/http"
-// 	"strings"
-// 	"sync"
-//
-// 	"github.com/gorilla/websocket"
-// )
-//
-// type Message struct {
-// 	SenderIP string  `json:"sender_ip"`
-// 	Sender   string  `json:"sender,omitempty"`
-// 	Content  string  `json:"content,omitempty"`
-// 	Lat      float64 `json:"lat,omitempty"`
-// 	Lng      float64 `json:"lng,omitempty"`
-// 	Avatar   string  `json:"avatar,omitempty"`
-// }
-//
-// var (
-// 	upgrader = websocket.Upgrader{
-// 		ReadBufferSize:  1024,
-// 		WriteBufferSize: 1024,
-// 		CheckOrigin:     func(r *http.Request) bool { return true },
-// 	}
-//
-// 	clients         = make(map[*websocket.Conn]string)  // WebSocket to IP
-// 	broadcast       = make(chan Message)
-// 	clientLocations = make(map[string]Message)          // unique ID -> Message
-// 	messageHistory  = []Message{}
-//
-// 	mutex sync.Mutex
-//
-// 	messagesFile  = "messages.json"
-// 	locationsFile = "locations.json"
-// 	avatars       = []string{"/avatars/avatar1.png", "/avatars/avatar2.png", "/avatars/avatar3.png"} // Avatar list
-// )
-//
-// func main() {
-// 	loadData()
-//
-// 	http.Handle("/leaflet/", http.StripPrefix("/leaflet/", http.FileServer(http.Dir("./leaflet"))))
-// 	http.Handle("/avatars/", http.StripPrefix("/avatars/", http.FileServer(http.Dir("./avatars"))))
-// 	http.HandleFunc("/", serveHome)
-// 	http.HandleFunc("/ws", handleConnections)
-//
-// 	go handleMessages()
-//
-// 	addr := ":8443"
-// 	fmt.Printf("✅ Server running at https://localhost%s\n", addr)
-// 	log.Fatal(http.ListenAndServeTLS(addr, "cert.pem", "key.pem", nil))
-// }
-//
-// func serveHome(w http.ResponseWriter, r *http.Request) {
-// 	http.ServeFile(w, r, "index.html")
-// }
-//
-// func handleConnections(w http.ResponseWriter, r *http.Request) {
-// 	ip := getIPAddress(r)
-// 	avatar := avatars[len(clients)%len(avatars)] // Random avatar assignment
-//
-// 	ws, err := upgrader.Upgrade(w, r, nil)
-// 	if err != nil {
-// 		log.Printf("Upgrade error: %v\n", err)
-// 		return
-// 	}
-// 	defer ws.Close()
-// 	ws.SetReadLimit(20 * 1024)
-//
-// 	clientID := fmt.Sprintf("%p", ws)
-//
-// 	log.Printf("New client connected: %s [%s]\n", ip, clientID)
-//
-// 	mutex.Lock()
-// 	clients[ws] = ip
-// 	mutex.Unlock()
-//
-// 	// Send existing messages
-// 	mutex.Lock()
-// 	for _, msg := range messageHistory {
-// 		if msg.Avatar == "" {
-// 			msg.Avatar = avatar
-// 		}
-// 		ws.WriteJSON(msg)
-// 	}
-// 	// Send existing locations
-// 	for _, loc := range clientLocations {
-// 		ws.WriteJSON(loc)
-// 	}
-// 	mutex.Unlock()
-//
-// 	for {
-// 		var msg Message
-// 		err := ws.ReadJSON(&msg)
-// 		if err != nil {
-// 			log.Printf("Client %s disconnected: %v\n", ip, err)
-// 			mutex.Lock()
-// 			delete(clients, ws)
-// 			delete(clientLocations, clientID)
-// 			saveLocations()
-// 			mutex.Unlock()
-// 			break
-// 		}
-//
-// 		msg.SenderIP = ip
-// 		msg.Avatar = avatar
-//
-// 		log.Printf("📨 Message from %s: %+v\n", ip, msg)
-//
-// 		mutex.Lock()
-// 		if msg.Content != "" {
-// 			messageHistory = append(messageHistory, msg)
-// 			saveMessages()
-// 		}
-// 		if msg.Lat != 0 || msg.Lng != 0 {
-// 			clientLocations[clientID] = msg
-// 			saveLocations()
-// 		}
-// 		mutex.Unlock()
-//
-// 		// Broadcast message to all connected clients
-// 		broadcast <- msg
-// 	}
-// }
-//
-// func handleMessages() {
-// 	for {
-// 		msg := <-broadcast
-// 		mutex.Lock()
-// 		for client := range clients {
-// 			client.WriteJSON(msg)
-// 		}
-// 		mutex.Unlock()
-// 	}
-// }
-//
-// func saveMessages() {
-// 	data, err := json.MarshalIndent(messageHistory, "", "  ")
-// 	if err == nil {
-// 		_ = ioutil.WriteFile(messagesFile, data, 0644)
-// 	}
-// }
-//
-// func saveLocations() {
-// 	data, err := json.MarshalIndent(clientLocations, "", "  ")
-// 	if err == nil {
-// 		_ = ioutil.WriteFile(locationsFile, data, 0644)
-// 	}
-// }
-//
-// func loadData() {
-// 	if data, err := ioutil.ReadFile(messagesFile); err == nil {
-// 		_ = json.Unmarshal(data, &messageHistory)
-// 	}
-// 	if data, err := ioutil.ReadFile(locationsFile); err == nil {
-// 		_ = json.Unmarshal(data, &clientLocations)
-// 	}
-// }
-//
-// func getIPAddress(r *http.Request) string {
-// 	// Prefer X-Forwarded-For for real IP if available
-// 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-// 		parts := strings.Split(forwarded, ",")
-// 		return strings.TrimSpace(parts[0])
-// 	}
-// 	ip := strings.Split(r.RemoteAddr, ":")[0]
-// 	return ip
-// }
-//
-
-
 package main
 
 import (
@@ -236,15 +61,15 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleUsers(w http.ResponseWriter, r *http.Request) {
-    mutex.Lock()
-    defer mutex.Unlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 
-    var users []Message
-    for _, msg := range clientLocations {
-        users = append(users, msg)
-    }
-    w.Header().Set("content-type", "application/json")
-    json.NewEncoder(w).Encode(users)
+	var users []Message
+	for _, msg := range clientLocations {
+		users = append(users, msg)
+	}
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(users)
 
 }
 
@@ -354,4 +179,3 @@ func getIPAddress(r *http.Request) string {
 	ip := strings.Split(r.RemoteAddr, ":")[0]
 	return ip
 }
-
