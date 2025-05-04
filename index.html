@@ -1,3 +1,137 @@
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+<!--  <meta charset="UTF-8" />-->
+<!--  <title>Emergency Mesh Chat + Map</title>-->
+<!--  <style>-->
+<!--    body { font-family: Arial, sans-serif; }-->
+<!--    #chat { height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }-->
+<!--    #msgInput { width: 80%; }-->
+<!--    #map { height: 300px; margin-top: 20px; border: 1px solid #ccc; }-->
+<!--    .message { display: flex; align-items: center; margin-bottom: 10px; }-->
+<!--    .message img.avatar { width: 32px; height: 32px; border-radius: 50%; margin-right: 10px; }-->
+<!--    .message .bubble { background-color: #f1f1f1; padding: 10px; border-radius: 10px; }-->
+<!--    .mine .bubble { background-color: #daf8da; }-->
+<!--    .other .bubble { background-color: #f0f0f0; }-->
+<!--  </style>-->
+<!--  <link rel="stylesheet" href="/leaflet/leaflet.css" />-->
+<!--</head>-->
+<!--<body>-->
+<!--  <h2>Emergency Mesh Chat</h2>-->
+<!--  <div id="chat"></div>-->
+<!--  <input id="nameInput" type="text" placeholder="Your Name" />-->
+<!--  <input id="msgInput" type="text" placeholder="Type a message" />-->
+<!--  <button onclick="sendMsg()">Send</button>-->
+<!---->
+<!--  <div id="map"></div>-->
+<!---->
+<!--  <script src="/leaflet/leaflet.js"></script>-->
+<!--  <script>-->
+<!--    const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);-->
+<!--    const chat = document.getElementById('chat');-->
+<!--    const markers = {};-->
+<!--    let map, myLat, myLng;-->
+<!---->
+<!--    // List of avatar images-->
+<!--    const avatars = [-->
+<!--      "/avatars/avatar1.png",-->
+<!--      "/avatars/avatar2.png",-->
+<!--      <!--"/avatars/avatar3.png"-->-->
+<!--    ];-->
+<!---->
+<!--    ws.onmessage = function(event) {-->
+<!--      const data = JSON.parse(event.data);-->
+<!---->
+<!--      // Display chat message with avatar-->
+<!--      if (data.sender && data.content) {-->
+<!--        const div = document.createElement('div');-->
+<!--        div.classList.add('message');-->
+<!---->
+<!--        const isMine = data.sender === document.getElementById('nameInput').value;-->
+<!--        div.classList.add(isMine ? 'mine' : 'other');-->
+<!---->
+<!--        // Avatar image-->
+<!--        const avatarImg = document.createElement('img');-->
+<!--        avatarImg.src = data.avatar || '/avatars/avatar1.png';  // Default avatar-->
+<!--        avatarImg.alt = "avatar";-->
+<!--        avatarImg.classList.add("avatar");-->
+<!---->
+<!--        // Message bubble-->
+<!--        const text = document.createElement('div');-->
+<!--        text.textContent = `${data.sender}: ${data.content}`;-->
+<!--        text.classList.add("bubble");-->
+<!---->
+<!--        if (isMine) {-->
+<!--          div.appendChild(text);-->
+<!--          div.appendChild(avatarImg);-->
+<!--        } else {-->
+<!--          div.appendChild(avatarImg);-->
+<!--          div.appendChild(text);-->
+<!--        }-->
+<!---->
+<!--        chat.appendChild(div);-->
+<!--        chat.scrollTop = chat.scrollHeight;-->
+<!--      }-->
+<!---->
+<!--      // Show marker for user location-->
+<!--      if (data.lat && data.lng) {-->
+<!--        const label = data.sender || data.sender_ip || "Unknown";-->
+<!--        if (!markers[label]) {-->
+<!--          markers[label] = L.marker([data.lat, data.lng]).addTo(map).bindPopup(label);-->
+<!--        } else {-->
+<!--          markers[label].setLatLng([data.lat, data.lng]);-->
+<!--        }-->
+<!--      }-->
+<!--    };-->
+<!---->
+<!--    function sendMsg() {-->
+<!--      const name = document.getElementById('nameInput').value || "Anonymous";-->
+<!--      const msg = document.getElementById('msgInput').value;-->
+<!--      if (!msg) return;-->
+<!---->
+<!--      // Randomly select an avatar for the sender-->
+<!--      const avatar = avatars[Math.floor(Math.random() * avatars.length)];-->
+<!---->
+<!--      // Send message with avatar-->
+<!--      ws.send(JSON.stringify({ sender: name, content: msg, avatar }));-->
+<!--      document.getElementById('msgInput').value = '';-->
+<!--    }-->
+<!---->
+<!--    function sendLocation(lat, lng) {-->
+<!--      const name = document.getElementById('nameInput').value || "Anonymous";-->
+<!--      ws.send(JSON.stringify({ sender: name, lat, lng }));-->
+<!--    }-->
+<!---->
+<!--    function initMap(lat, lng) {-->
+<!--      myLat = lat;-->
+<!--      myLng = lng;-->
+<!---->
+<!--      map = L.map('map').setView([lat, lng], 13);-->
+<!--      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {-->
+<!--        attribution: 'Map data © OpenStreetMap contributors',-->
+<!--      }).addTo(map);-->
+<!---->
+<!--      L.marker([lat, lng]).addTo(map).bindPopup("You").openPopup();-->
+<!---->
+<!--      if (ws.readyState === WebSocket.OPEN) {-->
+<!--        sendLocation(lat, lng);-->
+<!--      } else {-->
+<!--        ws.onopen = () => sendLocation(lat, lng);-->
+<!--      }-->
+<!--    }-->
+<!---->
+<!--    navigator.geolocation.getCurrentPosition(-->
+<!--      position => initMap(position.coords.latitude, position.coords.longitude),-->
+<!--      () => {-->
+<!--        alert("Location permission denied. Using fallback location.");-->
+<!--        initMap(28.6139, 77.2090); // Delhi fallback-->
+<!--      }-->
+<!--    );-->
+<!--  </script>-->
+<!--</body>-->
+<!--</html>-->
+<!---->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,6 +147,9 @@
     .message .bubble { background-color: #f1f1f1; padding: 10px; border-radius: 10px; }
     .mine .bubble { background-color: #daf8da; }
     .other .bubble { background-color: #f0f0f0; }
+    #connectedDevices { margin-top: 20px; }
+    #connectedDevices ul { list-style-type: none; padding: 0; }
+    #connectedDevices li { margin-bottom: 10px; }
   </style>
   <link rel="stylesheet" href="/leaflet/leaflet.css" />
 </head>
@@ -25,19 +162,27 @@
 
   <div id="map"></div>
 
+  <div id="connectedDevices">
+    <h3>Connected Devices</h3>
+    <ul id="devicesList"></ul>
+  </div>
+
   <script src="/leaflet/leaflet.js"></script>
   <script>
     const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
     const chat = document.getElementById('chat');
     const markers = {};
+    const devicesList = document.getElementById('devicesList');
     let map, myLat, myLng;
 
     // List of avatar images
     const avatars = [
       "/avatars/avatar1.png",
       "/avatars/avatar2.png",
-      <!--"/avatars/avatar3.png"-->
+      //"/avatars/avatar3.png"
     ];
+
+    const connectedDevices = {}; // Store connected devices and their locations
 
     ws.onmessage = function(event) {
       const data = JSON.parse(event.data);
@@ -81,6 +226,10 @@
         } else {
           markers[label].setLatLng([data.lat, data.lng]);
         }
+
+        // Update the connected devices list
+        connectedDevices[label] = { lat: data.lat, lng: data.lng };
+        updateConnectedDevicesList();
       }
     };
 
@@ -117,6 +266,16 @@
         sendLocation(lat, lng);
       } else {
         ws.onopen = () => sendLocation(lat, lng);
+      }
+    }
+
+    function updateConnectedDevicesList() {
+      devicesList.innerHTML = ""; // Clear the list
+      for (let label in connectedDevices) {
+        const device = connectedDevices[label];
+        const li = document.createElement('li');
+        li.textContent = `${label} - Lat: ${device.lat}, Lng: ${device.lng}`;
+        devicesList.appendChild(li);
       }
     }
 

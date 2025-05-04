@@ -159,7 +159,6 @@
 // }
 //
 
-
 package main
 
 import (
@@ -199,6 +198,7 @@ var (
 
 	messagesFile  = "messages.json"
 	locationsFile = "locations.json"
+	avatars       = []string{"/avatars/avatar1.png", "/avatars/avatar2.png", "/avatars/avatar3.png"} // Avatar list
 )
 
 func main() {
@@ -222,7 +222,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	ip := getIPAddress(r)
-	avatar := fmt.Sprintf("avatars/avatar%d.png", len(clients)%2)
+	avatar := avatars[len(clients)%len(avatars)] // Random avatar assignment
 
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -283,6 +283,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 		mutex.Unlock()
 
+		// Broadcast message to all connected clients
 		broadcast <- msg
 	}
 }
